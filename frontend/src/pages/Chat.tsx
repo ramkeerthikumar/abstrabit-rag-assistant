@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "../config/supabase";
 import { useWorkspace } from "../contexts/WorkspaceContext";
 
+const API_URL = import.meta.env.VITE_API_URL;
+
 export default function Chat() {
   const navigate = useNavigate();
   const { activeWorkspace } = useWorkspace();
@@ -18,7 +20,9 @@ export default function Chat() {
   // ✅ SAFE AUTH CHECK
   useEffect(() => {
     const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
       if (!session) {
         navigate("/");
@@ -29,7 +33,7 @@ export default function Chat() {
     };
 
     checkAuth();
-  }, []);
+  }, [navigate]);
 
   const askQuestion = async () => {
     if (!question.trim()) return;
@@ -39,15 +43,21 @@ export default function Chat() {
       return;
     }
 
-    const userMsg = { role: "user" as const, text: question };
-    setMessages((prev) => [...prev, userMsg]);
-
     const currentQuestion = question;
+
+    setMessages((prev) => [
+      ...prev,
+      {
+        role: "user",
+        text: currentQuestion,
+      },
+    ]);
+
     setQuestion("");
     setLoading(true);
 
     try {
-      const res = await fetch("http://localhost:5000/api/chat", {
+      const res = await fetch(`${API_URL}/api/chat`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -57,6 +67,10 @@ export default function Chat() {
           workspace_id: activeWorkspace.id,
         }),
       });
+
+      if (!res.ok) {
+        throw new Error("Failed to get response");
+      }
 
       const data = await res.json();
 
@@ -72,7 +86,10 @@ export default function Chat() {
 
       setMessages((prev) => [
         ...prev,
-        { role: "ai", text: "Error getting response" },
+        {
+          role: "ai",
+          text: "Error getting response",
+        },
       ]);
     } finally {
       setLoading(false);
@@ -85,7 +102,6 @@ export default function Chat() {
 
   return (
     <div className="min-h-screen flex flex-col p-6 bg-gray-50">
-
       {/* HEADER */}
       <div className="flex justify-between mb-4">
         <h1 className="text-2xl font-bold text-blue-600">
@@ -102,7 +118,6 @@ export default function Chat() {
 
       {/* CHAT BOX */}
       <div className="flex-1 border rounded p-4 bg-white overflow-y-auto space-y-3">
-
         {messages.length === 0 && (
           <p className="text-gray-400">
             Ask questions about your documents...
@@ -131,7 +146,9 @@ export default function Chat() {
         ))}
 
         {loading && (
-          <p className="text-gray-400">AI is thinking...</p>
+          <p className="text-gray-400">
+            AI is thinking...
+          </p>
         )}
       </div>
 
@@ -140,15 +157,25 @@ export default function Chat() {
         <input
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !loading) {
+              askQuestion();
+            }
+          }}
           placeholder="Ask something..."
           className="flex-1 border px-4 py-2 rounded-l"
         />
 
         <button
           onClick={askQuestion}
-          className="bg-blue-600 text-white px-6 rounded-r"
+          disabled={loading}
+          className={`px-6 rounded-r text-white ${
+            loading
+              ? "bg-gray-400 cursor-not-allowed"
+              : "bg-blue-600"
+          }`}
         >
-          Send
+          {loading ? "Sending..." : "Send"}
         </button>
       </div>
     </div>
