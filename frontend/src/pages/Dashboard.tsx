@@ -52,7 +52,7 @@ export default function Dashboard() {
       formData.append("file", file);
       formData.append("workspace_id", activeWorkspace.id);
 
-      const response = await fetch("http://localhost:5000/api/upload", {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/upload`, {
         method: "POST",
         body: formData,
       });
